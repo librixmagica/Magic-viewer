@@ -3,258 +3,298 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Magic eBooks Viewer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <title>💫Magic Viewer</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Visor de archivos .magic - Abre y visualiza contenido mágico">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Magic Viewer">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
             background-color: black;
             color: white;
             font-family: Arial, sans-serif;
-            margin: 20px;
+            padding: 20px;
+        }
+        
+        .header {
+            margin-bottom: 20px;
+        }
+        
+        .title {
+            font-size: 16px;
+            font-weight: bold;
+            text-align: left;
+            margin-bottom: 15px;
+        }
+        
+        .open-button {
+            background: none;
+            border: 1px solid #333;
+            color: white;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .open-button:hover {
+            background-color: #333;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .magic-item {
             display: flex;
             flex-direction: column;
-            align-items: flex-start;
-            transition: background-color 0.3s ease; /* Transición suave para el fondo */
+            align-items: center;
+            cursor: pointer;
+            padding: 10px;
+            border: 1px solid #333;
+            background: transparent;
         }
-        /* Oculta los elementos de la interfaz principal cuando se carga un ebook */
-        body.fullscreen-mode > :not(#viewerContent) {
+        
+        .magic-item:hover {
+            background-color: #222;
+        }
+        
+        .magic-icon {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 5px;
+        }
+        
+        .magic-name {
+            font-size: 12px;
+            text-align: center;
+            word-break: break-word;
+        }
+        
+        #fileInput {
             display: none;
         }
-
-        h1 {
-            font-size: 0.75em;
-            font-weight: normal;
-            text-shadow: none;
-            text-align: left;
-            margin-bottom: 20px;
-        }
-        #fileInputWrapper {
-            display: inline-block;
-            position: relative;
-            overflow: hidden;
-            margin-bottom: 20px;
-        }
-        #fileInput {
-            position: absolute;
-            left: 0;
+        
+        .fullscreen-container {
+            position: fixed;
             top: 0;
-            opacity: 0;
-            cursor: pointer;
-            font-size: 100px;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .fullscreen-iframe {
             width: 100%;
             height: 100%;
+            border: none;
         }
-        #customButton {
-            display: inline-block;
-            padding: 10px 20px;
-            background-color: #333;
+        
+        .close-fullscreen {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
             color: white;
-            border: 1px solid #555;
+            border: none;
+            padding: 10px;
             cursor: pointer;
-            border-radius: 5px;
-            font-size: 1.5em;
-            line-height: 1;
-        }
-        #fileList {
-            list-style: none;
-            padding: 0;
-            width: 100%;
-        }
-        #fileList li {
-            display: flex;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px dashed #444;
-        }
-        #fileList li:last-child {
-            border-bottom: none;
-        }
-        #fileList img {
-            width: 32px;
-            height: 32px;
-            margin-right: 10px;
-            object-fit: contain;
-            background-color: #555;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: transform 0.1s ease-in-out;
-        }
-        #fileList img:hover {
-            transform: scale(1.05);
-        }
-        .file-name {
-            flex-grow: 1;
-        }
-        .error-message {
-            color: #ff6666;
-            margin-left: 10px;
-        }
-        /* Contenedor para el contenido del eBook */
-        #viewerContent {
-            position: fixed; /* Ocupa toda la ventana del navegador */
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: black; /* Fondo negro por defecto para el contenido */
-            color: white; /* Color de texto por defecto para el contenido */
-            z-index: 1000; /* Asegura que esté por encima de todo */
-            display: none; /* Oculto por defecto */
-            border: none; /* Eliminar bordes del iframe */
-            box-sizing: border-box; /* Incluir padding/border en el tamaño total */
-            padding: 0;
-            margin: 0;
+            z-index: 10000;
+            font-size: 16px;
         }
     </style>
 </head>
 <body>
-
-    <h1>💫Magic eBooks Viewer</h1>
-
-    <div id="fileInputWrapper">
-        <input type="file" id="fileInput" multiple accept=".magic">
-        <label for="fileInput" id="customButton">🔎📜</label>
+    <div class="header">
+        <div class="title">💫Magic Viewer</div>
+        <button class="open-button" onclick="openFileDialog()">✨️</button>
+        <input type="file" id="fileInput" multiple accept=".magic" webkitdirectory="" />
+    </div>
+    
+    <div class="grid-container" id="magicGrid">
+        <!-- Los items .magic aparecerán aquí -->
+    </div>
+    
+    <div class="fullscreen-container" id="fullscreenContainer">
+        <button class="close-fullscreen" onclick="closeFullscreen()">✕</button>
+        <iframe class="fullscreen-iframe" id="fullscreenIframe"></iframe>
     </div>
 
-    <ul id="fileList">
-        </ul>
-
-    <iframe id="viewerContent"></iframe>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            const fileInput = document.getElementById('fileInput');
-            const fileList = document.getElementById('fileList');
-            const viewerContent = document.getElementById('viewerContent'); // El iframe
-
-            // Escucha cuando el modo de pantalla completa cambia
-            document.addEventListener('fullscreenchange', () => {
-                if (document.fullscreenElement) {
-                    // Si estamos en pantalla completa, oculta la interfaz principal
-                    document.body.classList.add('fullscreen-mode');
-                } else {
-                    // Si salimos de pantalla completa, muestra la interfaz principal y oculta el contenido del visor
-                    document.body.classList.remove('fullscreen-mode');
-                    viewerContent.style.display = 'none';
-                    viewerContent.srcdoc = ''; // Limpia el contenido del iframe
-                }
-            });
-
-            fileInput.addEventListener('change', async (event) => {
-                fileList.innerHTML = ''; // Limpiar la lista anterior
-
-                const files = event.target.files;
-
-                if (files.length === 0) {
-                    fileList.innerHTML = '<li>No se han seleccionado archivos.</li>';
-                    return;
-                }
-
-                for (const file of files) {
-                    const listItem = document.createElement('li');
-                    const fileNameSpan = document.createElement('span');
-                    fileNameSpan.classList.add('file-name');
-                    fileNameSpan.textContent = `• ${file.name}`;
-
-                    if (!file.name.toLowerCase().endsWith('.magic')) {
-                        listItem.appendChild(fileNameSpan);
-                        const errorMessage = document.createElement('span');
-                        errorMessage.classList.add('error-message');
-                        errorMessage.textContent = ' (No es un archivo .magic válido)';
-                        listItem.appendChild(errorMessage);
-                        fileList.appendChild(listItem);
-                        continue;
+        let magicFiles = [];
+        
+        function openFileDialog() {
+            // Intentar acceder a la carpeta de descargas
+            if ('showDirectoryPicker' in window) {
+                // API moderna para seleccionar directorio
+                window.showDirectoryPicker({
+                    suggestedName: 'Downloads'
+                }).then(directoryHandle => {
+                    scanForMagicFiles(directoryHandle);
+                }).catch(err => {
+                    console.log('Usuario canceló o error:', err);
+                    // Fallback al input de archivos
+                    document.getElementById('fileInput').click();
+                });
+            } else {
+                // Fallback para navegadores que no soportan la API
+                document.getElementById('fileInput').click();
+            }
+        }
+        
+        async function scanForMagicFiles(directoryHandle) {
+            const magicFiles = [];
+            
+            try {
+                for await (const [name, handle] of directoryHandle.entries()) {
+                    if (handle.kind === 'file' && name.endsWith('.magic')) {
+                        const file = await handle.getFile();
+                        magicFiles.push({
+                            name: name.replace('.magic', ''),
+                            file: file
+                        });
                     }
-
-                    try {
-                        const arrayBuffer = await file.arrayBuffer();
-                        const zip = await JSZip.loadAsync(arrayBuffer);
-
-                        const iconFile = zip.file('icon.ico');
-                        const indexHtmlFile = zip.file('index.html');
-
-                        let iconElement = null; // Renombrado a iconElement para ser más genérico
-
-                        if (iconFile) {
-                            const iconDataUrl = await iconFile.async('base64');
-                            const img = document.createElement('img');
-                            img.src = `data:image/x-icon;base64,${iconDataUrl}`;
-                            img.alt = 'Icono';
-                            listItem.appendChild(img);
-                            iconElement = img;
-                        } else {
-                            const defaultIconDiv = document.createElement('div');
-                            defaultIconDiv.style.width = '32px';
-                            defaultIconDiv.style.height = '32px';
-                            defaultIconDiv.style.marginRight = '10px';
-                            defaultIconDiv.style.backgroundColor = '#666';
-                            defaultIconDiv.style.borderRadius = '4px';
-                            defaultIconDiv.style.display = 'flex';
-                            defaultIconDiv.style.alignItems = 'center';
-                            defaultIconDiv.style.justifyContent = 'center';
-                            defaultIconDiv.textContent = '?';
-                            defaultIconDiv.style.fontSize = '1.2em';
-                            defaultIconDiv.style.cursor = 'pointer';
-                            defaultIconDiv.title = 'No icon.ico found, click to open content';
-                            listItem.appendChild(defaultIconDiv);
-                            iconElement = defaultIconDiv;
-                        }
-
-                        listItem.appendChild(fileNameSpan);
-                        fileNameSpan.textContent = file.name;
-
-                        // Si encontramos index.html, preparamos el clic
-                        if (indexHtmlFile) {
-                            const htmlContent = await indexHtmlFile.async('text');
-
-                            iconElement.addEventListener('click', () => {
-                                // 1. Mostrar el iframe y cargar el contenido
-                                viewerContent.style.display = 'block';
-                                // srcdoc es más seguro que data URLs para iframes y permite scripts
-                                viewerContent.srcdoc = htmlContent;
-
-                                // 2. Intentar ir a pantalla completa
-                                if (document.documentElement.requestFullscreen) {
-                                    document.documentElement.requestFullscreen().catch(err => {
-                                        console.warn("No se pudo entrar en pantalla completa automáticamente:", err);
-                                        // Puedes informar al usuario si lo deseas
-                                        // alert("Para una experiencia de pantalla completa, por favor, presiona F11 o el botón de pantalla completa si tu navegador lo permite.");
-                                    });
-                                } else {
-                                    console.warn("La API de pantalla completa no es soportada por este navegador.");
-                                }
-
-                                // Opcional: Escucha el evento de 'load' del iframe si necesitas hacer algo después de que el contenido se cargue
-                                viewerContent.onload = () => {
-                                    // Asegúrate de que el fondo del body del iframe sea negro si no está definido en el index.html interno
-                                    if (viewerContent.contentDocument && !viewerContent.contentDocument.body.style.backgroundColor) {
-                                        viewerContent.contentDocument.body.style.backgroundColor = 'black';
-                                        viewerContent.contentDocument.body.style.color = 'white';
-                                    }
-                                };
-                            });
-
-                        } else {
-                            const errorMessage = document.createElement('span');
-                            errorMessage.classList.add('error-message');
-                            errorMessage.textContent = ' (No se encontró index.html en este archivo .magic)';
-                            listItem.appendChild(errorMessage);
-                            if (iconElement) iconElement.style.cursor = 'default';
-                        }
-
-                    } catch (e) {
-                        listItem.appendChild(fileNameSpan);
-                        const errorMessage = document.createElement('span');
-                        errorMessage.classList.add('error-message');
-                        errorMessage.textContent = ` (Error al procesar: ${e.message})`;
-                        fileList.appendChild(listItem);
-                        console.error('Error procesando archivo .magic:', file.name, e);
-                    }
-                    fileList.appendChild(listItem);
                 }
-            });
+                
+                displayMagicFiles(magicFiles);
+            } catch (error) {
+                console.error('Error escaneando archivos:', error);
+            }
+        }
+        
+        // Fallback para input de archivos
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const files = Array.from(e.target.files).filter(file => file.name.endsWith('.magic'));
+            const magicFileData = files.map(file => ({
+                name: file.name.replace('.magic', ''),
+                file: file
+            }));
+            
+            displayMagicFiles(magicFileData);
         });
+        
+        async function displayMagicFiles(files) {
+            const grid = document.getElementById('magicGrid');
+            grid.innerHTML = '';
+            
+            for (const magicFile of files) {
+                try {
+                    const zip = new JSZip();
+                    const zipContent = await zip.loadAsync(magicFile.file);
+                    
+                    // Extraer el icono
+                    const iconFile = zipContent.files['icon.ico'];
+                    if (iconFile) {
+                        const iconBlob = await iconFile.async('blob');
+                        const iconUrl = URL.createObjectURL(iconBlob);
+                        
+                        // Crear elemento de la grilla
+                        const item = document.createElement('div');
+                        item.className = 'magic-item';
+                        item.onclick = () => openMagicFile(magicFile);
+                        
+                        item.innerHTML = `
+                            <img class="magic-icon" src="${iconUrl}" alt="${magicFile.name}" />
+                            <div class="magic-name">${magicFile.name}</div>
+                        `;
+                        
+                        grid.appendChild(item);
+                    }
+                } catch (error) {
+                    console.error('Error procesando archivo magic:', error);
+                }
+            }
+            
+            // Guardar referencia para usar en openMagicFile
+            window.currentMagicFiles = files;
+        }
+        
+        async function openMagicFile(magicFile) {
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(magicFile.file);
+                
+                // Extraer el index.html
+                const indexFile = zipContent.files['index.html'];
+                if (indexFile) {
+                    const htmlContent = await indexFile.async('string');
+                    
+                    // Crear un blob con el contenido HTML
+                    const blob = new Blob([htmlContent], { type: 'text/html' });
+                    const url = URL.createObjectURL(blob);
+                    
+                    // Mostrar en fullscreen
+                    const iframe = document.getElementById('fullscreenIframe');
+                    iframe.src = url;
+                    document.getElementById('fullscreenContainer').style.display = 'block';
+                    
+                    // Intentar entrar en modo fullscreen real
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('No se pudo entrar en fullscreen:', err);
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error abriendo archivo magic:', error);
+            }
+        }
+        
+        function closeFullscreen() {
+            document.getElementById('fullscreenContainer').style.display = 'none';
+            
+            // Salir del modo fullscreen
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => {
+                    console.log('Error saliendo de fullscreen:', err);
+                });
+            }
+            
+            // Limpiar el iframe
+            document.getElementById('fullscreenIframe').src = '';
+        }
+        
+        // Cerrar con ESC
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFullscreen();
+            }
+        });
+        
+        // Registrar Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('SW registrado:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('SW falló:', error);
+                    });
+            });
+        }
     </script>
-
 </body>
 </html>
