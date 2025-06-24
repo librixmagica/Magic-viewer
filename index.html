@@ -35,13 +35,15 @@
         
         .header {
             margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         
         .title {
             font-size: 16px;
             font-weight: lighter;
             text-align: left;
-            margin-bottom: 15px;
         }
         
         .open-button {
@@ -50,7 +52,6 @@
             color: gray;
             padding: 10px 15px;
             cursor: pointer;
-            text-align: right;
             font-size: 16px;
         }
         
@@ -60,8 +61,8 @@
         
         .grid-container {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 15px;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
             margin-top: 20px;
         }
         
@@ -70,7 +71,7 @@
             flex-direction: column;
             align-items: center;
             cursor: pointer;
-            padding: 10px;
+            padding: 15px;
             border: 0px solid #333;
             background: transparent;
         }
@@ -80,9 +81,9 @@
         }
         
         .magic-icon {
-            width: 48px;
-            height: 48px;
-            margin-bottom: 5px;
+            width: 80px;
+            height: 80px;
+            margin-bottom: 10px;
         }
         
         .magic-name {
@@ -145,6 +146,50 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script>
         let magicFiles = [];
+        
+        // Cargar archivos .magic automáticamente al iniciar
+        window.addEventListener('load', function() {
+            loadMagicFilesFromRoot();
+        });
+        
+        async function loadMagicFilesFromRoot() {
+            try {
+                // Intentar cargar archivos .magic desde la carpeta raíz
+                const response = await fetch('./');
+                const text = await response.text();
+                
+                // Buscar enlaces a archivos .magic en el HTML de directorio
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(text, 'text/html');
+                const links = doc.querySelectorAll('a[href$=".magic"]');
+                
+                if (links.length > 0) {
+                    const rootMagicFiles = [];
+                    
+                    for (const link of links) {
+                        try {
+                            const fileName = link.getAttribute('href');
+                            const response = await fetch(fileName);
+                            const blob = await response.blob();
+                            
+                            rootMagicFiles.push({
+                                name: fileName.replace('.magic', ''),
+                                file: blob
+                            });
+                        } catch (error) {
+                            console.log('Error cargando archivo magic:', error);
+                        }
+                    }
+                    
+                    if (rootMagicFiles.length > 0) {
+                        displayMagicFiles(rootMagicFiles);
+                    }
+                }
+            } catch (error) {
+                // Si no se pueden cargar automáticamente, no mostrar error
+                console.log('No se pudieron cargar archivos automáticamente');
+            }
+        }
         
         function openFileDialog() {
             // Intentar acceder a la carpeta de descargas
