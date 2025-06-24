@@ -153,41 +153,35 @@
         });
         
         async function loadMagicFilesFromRoot() {
-            try {
-                // Intentar cargar archivos .magic desde la carpeta raíz
-                const response = await fetch('./');
-                const text = await response.text();
-                
-                // Buscar enlaces a archivos .magic en el HTML de directorio
-                const parser = new DOMParser();
-                const doc = parser.parseFromString(text, 'text/html');
-                const links = doc.querySelectorAll('a[href$=".magic"]');
-                
-                if (links.length > 0) {
-                    const rootMagicFiles = [];
-                    
-                    for (const link of links) {
-                        try {
-                            const fileName = link.getAttribute('href');
-                            const response = await fetch(fileName);
-                            const blob = await response.blob();
-                            
-                            rootMagicFiles.push({
-                                name: fileName.replace('.magic', ''),
-                                file: blob
-                            });
-                        } catch (error) {
-                            console.log('Error cargando archivo magic:', error);
-                        }
+            // Lista de archivos .magic que pueden estar en la carpeta raíz
+            // Puedes agregar los nombres de tus archivos .magic aquí
+            const knownMagicFiles = [
+                'demo.magic',
+                'test.magic',
+                'sample.magic'
+                // Agrega aquí los nombres de tus archivos .magic
+            ];
+            
+            const rootMagicFiles = [];
+            
+            for (const fileName of knownMagicFiles) {
+                try {
+                    const response = await fetch(fileName);
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        rootMagicFiles.push({
+                            name: fileName.replace('.magic', ''),
+                            file: blob
+                        });
+                        console.log(`Archivo ${fileName} cargado automáticamente`);
                     }
-                    
-                    if (rootMagicFiles.length > 0) {
-                        displayMagicFiles(rootMagicFiles);
-                    }
+                } catch (error) {
+                    // Archivo no existe o no se puede cargar, continuar con el siguiente
                 }
-            } catch (error) {
-                // Si no se pueden cargar automáticamente, no mostrar error
-                console.log('No se pudieron cargar archivos automáticamente');
+            }
+            
+            if (rootMagicFiles.length > 0) {
+                displayMagicFiles(rootMagicFiles);
             }
         }
         
