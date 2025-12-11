@@ -19,6 +19,20 @@
     <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
     <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
     <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Ruffle Player -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <script>
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            "autoplay": "on",
+            "splashScreen": false,
+            "unmuteOverlay": "hidden",
+            "backgroundColor": "#000000",
+            "letterbox": "on"
+        };
+    </script>
+    
     <style>
         * {
             margin: 0;
@@ -113,6 +127,12 @@
             border: none;
         }
         
+        .fullscreen-swf {
+            width: 100%;
+            height: 100%;
+            display: none;
+        }
+        
         .close-fullscreen {
             position: fixed;
             top: 10px;
@@ -141,6 +161,7 @@
     <div class="fullscreen-container" id="fullscreenContainer">
         <button class="close-fullscreen" onclick="closeFullscreen()">✕</button>
         <iframe class="fullscreen-iframe" id="fullscreenIframe"></iframe>
+        <div class="fullscreen-swf" id="fullscreenSwf"></div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -153,13 +174,10 @@
         });
         
         async function loadMagicFilesFromRoot() {
-            // Lista de archivos .magic que pueden estar en la carpeta raíz
-            // Puedes agregar los nombres de tus archivos .magic aquí
             const knownMagicFiles = [
                 'Bokken.magic',
                 'test.magic',
                 'demo.magic'
-                // Agrega aquí los nombres de tus archivos .magic
             ];
             
             const rootMagicFiles = [];
@@ -176,7 +194,7 @@
                         console.log(`Archivo ${fileName} cargado automáticamente`);
                     }
                 } catch (error) {
-                    // Archivo no existe o no se puede cargar, continuar con el siguiente
+                    // Archivo no existe o no se puede cargar
                 }
             }
             
@@ -186,20 +204,16 @@
         }
         
         function openFileDialog() {
-            // Intentar acceder a la carpeta de descargas
             if ('showDirectoryPicker' in window) {
-                // API moderna para seleccionar directorio
                 window.showDirectoryPicker({
                     suggestedName: 'Downloads'
                 }).then(directoryHandle => {
                     scanForMagicFiles(directoryHandle);
                 }).catch(err => {
                     console.log('Usuario canceló o error:', err);
-                    // Fallback al input de archivos
                     document.getElementById('fileInput').click();
                 });
             } else {
-                // Fallback para navegadores que no soportan la API
                 document.getElementById('fileInput').click();
             }
         }
@@ -224,7 +238,6 @@
             }
         }
         
-        // Fallback para input de archivos
         document.getElementById('fileInput').addEventListener('change', function(e) {
             const files = Array.from(e.target.files).filter(file => file.name.endsWith('.magic'));
             const magicFileData = files.map(file => ({
@@ -244,13 +257,11 @@
                     const zip = new JSZip();
                     const zipContent = await zip.loadAsync(magicFile.file);
                     
-                    // Extraer el icono
                     const iconFile = zipContent.files['icon.ico'];
                     if (iconFile) {
                         const iconBlob = await iconFile.async('blob');
                         const iconUrl = URL.createObjectURL(iconBlob);
                         
-                        // Crear elemento de la grilla
                         const item = document.createElement('div');
                         item.className = 'magic-item';
                         item.onclick = () => openMagicFile(magicFile);
@@ -267,7 +278,6 @@
                 }
             }
             
-            // Guardar referencia para usar en openMagicFile
             window.currentMagicFiles = files;
         }
         
@@ -276,25 +286,66 @@
                 const zip = new JSZip();
                 const zipContent = await zip.loadAsync(magicFile.file);
                 
-                // Extraer el index.html
-                const indexFile = zipContent.files['index.html'];
-                if (indexFile) {
-                    const htmlContent = await indexFile.async('string');
+                // Buscar archivo SWF primero
+                let swfFile = null;
+                for (const [fileName, file] of Object.entries(zipContent.files)) {
+                    if (fileName.toLowerCase().endsWith('.swf') && !file.dir) {
+                        swfFile = file;
+                        break;
+                    }
+                }
+                
+                if (swfFile) {
+                    // Reproducir SWF con Ruffle
+                    const swfBlob = await swfFile.async('blob');
+                    const swfUrl = URL.createObjectURL(swfBlob);
                     
-                    // Crear un blob con el contenido HTML
-                    const blob = new Blob([htmlContent], { type: 'text/html' });
-                    const url = URL.createObjectURL(blob);
-                    
-                    // Mostrar en fullscreen
+                    const swfContainer = document.getElementById('fullscreenSwf');
                     const iframe = document.getElementById('fullscreenIframe');
-                    iframe.src = url;
+                    
+                    // Ocultar iframe, mostrar contenedor SWF
+                    iframe.style.display = 'none';
+                    swfContainer.style.display = 'block';
+                    
+                    // Crear elemento Ruffle
+                    swfContainer.innerHTML = '';
+                    const player = window.RufflePlayer.newest().createPlayer();
+                    player.style.width = '100%';
+                    player.style.height = '100%';
+                    swfContainer.appendChild(player);
+                    
+                    await player.load(swfUrl);
+                    
                     document.getElementById('fullscreenContainer').style.display = 'block';
                     
-                    // Intentar entrar en modo fullscreen real
                     if (document.documentElement.requestFullscreen) {
                         document.documentElement.requestFullscreen().catch(err => {
                             console.log('No se pudo entrar en fullscreen:', err);
                         });
+                    }
+                } else {
+                    // Si no hay SWF, buscar index.html
+                    const indexFile = zipContent.files['index.html'];
+                    if (indexFile) {
+                        const htmlContent = await indexFile.async('string');
+                        const blob = new Blob([htmlContent], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        const iframe = document.getElementById('fullscreenIframe');
+                        const swfContainer = document.getElementById('fullscreenSwf');
+                        
+                        // Mostrar iframe, ocultar contenedor SWF
+                        swfContainer.style.display = 'none';
+                        iframe.style.display = 'block';
+                        iframe.src = url;
+                        
+                        document.getElementById('fullscreenContainer').style.display = 'block';
+                        
+                        if (document.documentElement.requestFullscreen) {
+                            document.documentElement.requestFullscreen().catch(err => {
+                                console.log('No se pudo entrar en fullscreen:', err);
+                            });
+                        }
                     }
                 }
             } catch (error) {
@@ -305,25 +356,23 @@
         function closeFullscreen() {
             document.getElementById('fullscreenContainer').style.display = 'none';
             
-            // Salir del modo fullscreen
             if (document.fullscreenElement) {
                 document.exitFullscreen().catch(err => {
                     console.log('Error saliendo de fullscreen:', err);
                 });
             }
             
-            // Limpiar el iframe
+            // Limpiar ambos contenedores
             document.getElementById('fullscreenIframe').src = '';
+            document.getElementById('fullscreenSwf').innerHTML = '';
         }
         
-        // Cerrar con ESC
         document.addEventListener('keydown', function(e) {
             if (e.key === 'Escape') {
                 closeFullscreen();
             }
         });
         
-        // Registrar Service Worker
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', function() {
                 navigator.serviceWorker.register('sw.js')
@@ -337,4 +386,4 @@
         }
     </script>
 </body>
-</html>
+</html> 
