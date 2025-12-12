@@ -29,7 +29,8 @@
             "splashScreen": false,
             "unmuteOverlay": "hidden",
             "backgroundColor": "#000000",
-            "letterbox": "on"
+            "letterbox": "on",
+            "contextMenu": false
         };
     </script>
     
@@ -131,6 +132,14 @@
             width: 100%;
             height: 100%;
             display: none;
+            touch-action: none;
+        }
+        
+        /* Prevenir menú contextual en todos los elementos */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         
         .close-fullscreen {
@@ -314,6 +323,10 @@
                     player.style.height = '100%';
                     swfContainer.appendChild(player);
                     
+                    // Prevenir menú contextual en el player
+                    player.addEventListener('contextmenu', (e) => e.preventDefault());
+                    swfContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+                    
                     await player.load(swfUrl);
                     
                     document.getElementById('fullscreenContainer').style.display = 'block';
@@ -386,4 +399,4 @@
         }
     </script>
 </body>
-</html> 
+</html>
