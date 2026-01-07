@@ -1,6 +1,6 @@
 {
-  "name": "〽️Librix Magica",
-  "short_name": "Librix Magica",
+  "name": "〽️agicViewer",
+  "short_name": "Magic Viewer",
   "description": "Visor de archivos .magic - Abre y visualiza contenido mágico",
   "start_url": "./index.html",
   "display": "standalone",
