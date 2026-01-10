@@ -28,7 +28,7 @@
             "autoplay": "on",
             "splashScreen": false,
             "unmuteOverlay": "hidden",
-            
+            "backgroundColor": "#000000",
             "letterbox": "on",
             "contextMenu": false
         };
@@ -159,7 +159,7 @@
 <body>
     <div class="header">
         <div class="title">〽️agicViewer</div>
-        <button class="open-button" onclick="openFileDialog()">➕️</button>
+        <button class="open-button" onclick="openFileDialog()">✨️</button>
         <input type="file" id="fileInput" multiple accept=".magic" webkitdirectory="" />
     </div>
     
@@ -186,7 +186,6 @@
             const knownMagicFiles = [
                 'Bokken.magic',
                 'test.magic',
-                'Colors&Mazes.magic',
                 'demo.magic'
             ];
             
@@ -213,18 +212,71 @@
             }
         }
         
-        function openFileDialog() {
-            if ('showDirectoryPicker' in window) {
-                window.showDirectoryPicker({
-                    suggestedName: 'Downloads'
-                }).then(directoryHandle => {
-                    scanForMagicFiles(directoryHandle);
-                }).catch(err => {
-                    console.log('Usuario canceló o error:', err);
-                    document.getElementById('fileInput').click();
-                });
+        async function openFileDialog() {
+            // Verificar si el navegador soporta NFC
+            if ('NDEFReader' in window) {
+                try {
+                    const ndef = new NDEFReader();
+                    await ndef.scan();
+                    
+                    console.log('Escaneo NFC iniciado. Acerca un sticker NFC...');
+                    
+                    ndef.addEventListener('reading', async ({ message }) => {
+                        console.log('NFC detectado:', message);
+                        
+                        // Leer los registros del mensaje NFC
+                        for (const record of message.records) {
+                            if (record.recordType === 'text') {
+                                const textDecoder = new TextDecoder(record.encoding);
+                                const fileName = textDecoder.decode(record.data);
+                                
+                                console.log('Archivo leído del NFC:', fileName);
+                                
+                                // Asegurar que tenga la extensión .magic
+                                const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
+                                
+                                // Intentar cargar el archivo desde la raíz
+                                await loadMagicFileFromRoot(magicFileName);
+                            }
+                        }
+                    });
+                    
+                    ndef.addEventListener('readingerror', () => {
+                        console.error('Error leyendo el NFC');
+                    });
+                    
+                } catch (error) {
+                    console.error('Error iniciando NFC:', error);
+                    alert('No se pudo iniciar el escaneo NFC. Asegúrate de que tu dispositivo soporte NFC y que los permisos estén habilitados.');
+                }
             } else {
-                document.getElementById('fileInput').click();
+                alert('Tu navegador no soporta NFC. Necesitas usar un navegador compatible como Chrome en Android.');
+            }
+        }
+        
+        async function loadMagicFileFromRoot(fileName) {
+            try {
+                console.log(`Intentando cargar: ${fileName}`);
+                
+                const response = await fetch(fileName);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const magicFile = {
+                        name: fileName.replace('.magic', ''),
+                        file: blob
+                    };
+                    
+                    console.log(`Archivo ${fileName} cargado exitosamente`);
+                    
+                    // Mostrar la miniatura en el grid
+                    await displayMagicFiles([magicFile]);
+                } else {
+                    console.error(`Archivo ${fileName} no encontrado`);
+                    alert(`No se encontró el archivo: ${fileName}`);
+                }
+            } catch (error) {
+                console.error('Error cargando archivo magic:', error);
+                alert(`Error al cargar el archivo: ${fileName}`);
             }
         }
         
