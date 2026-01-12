@@ -61,6 +61,11 @@
             text-align: left;
         }
         
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
         .open-button {
             background: none;
             border: 0px solid #333;
@@ -185,7 +190,10 @@
 <body>
     <div class="header">
         <div class="title">〽️agicViewer</div>
-        <button class="open-button" onclick="openFileDialog()">➕️</button>
+        <div class="button-group">
+            <button class="open-button" onclick="startNFCScan()">✨</button>
+            <button class="open-button" onclick="startQRScan()">🍎</button>
+        </div>
         <input type="file" id="fileInput" multiple accept=".magic" webkitdirectory="" />
     </div>
     
@@ -316,6 +324,89 @@
                 console.error('Error cargando archivo magic:', error);
                 alert(`Error al cargar el archivo: ${fileName}`);
             }
+        }
+        
+        // QR SCANNER FUNCTIONS
+        async function startQRScan() {
+            const qrScannerContainer = document.getElementById('qrScannerContainer');
+            const qrVideo = document.getElementById('qrVideo');
+            const qrStatus = document.getElementById('qrStatus');
+            const grid = document.getElementById('magicGrid');
+            
+            try {
+                qrStatus.textContent = 'Iniciando cámara...';
+                
+                // Mostrar el contenedor del escáner en el grid
+                grid.appendChild(qrScannerContainer);
+                qrScannerContainer.style.display = 'block';
+                
+                qrStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                qrVideo.srcObject = qrStream;
+                await qrVideo.play();
+                qrScanning = true;
+                qrStatus.textContent = 'Escaneando...';
+                requestAnimationFrame(tickQR);
+                
+            } catch (error) {
+                console.error('Error iniciando QR:', error);
+                qrStatus.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function tickQR() {
+            if (!qrScanning) return;
+            
+            const qrVideo = document.getElementById('qrVideo');
+            const qrCanvas = document.getElementById('qrCanvas');
+            const qrStatus = document.getElementById('qrStatus');
+            const ctx = qrCanvas.getContext('2d', { willReadFrequently: true });
+            
+            if (qrVideo.readyState === qrVideo.HAVE_ENOUGH_DATA) {
+                qrCanvas.width = qrVideo.videoWidth;
+                qrCanvas.height = qrVideo.videoHeight;
+                ctx.drawImage(qrVideo, 0, 0, qrCanvas.width, qrCanvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, qrCanvas.width, qrCanvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height, {
+                    inversionAttempts: "dontInvert",
+                });
+                
+                if (code) {
+                    const fileName = code.data;
+                    console.log('QR detectado:', fileName);
+                    qrStatus.textContent = 'QR detectado!';
+                    
+                    // Detener escaneo
+                    stopQRScan();
+                    
+                    // Asegurar que tenga la extensión .magic
+                    const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
+                    
+                    // Cargar el archivo
+                    loadMagicFileFromRoot(magicFileName);
+                    return;
+                }
+            }
+            
+            requestAnimationFrame(tickQR);
+        }
+        
+        function stopQRScan() {
+            qrScanning = false;
+            if (qrStream) {
+                qrStream.getTracks().forEach(track => track.stop());
+                qrStream = null;
+            }
+            
+            const qrScannerContainer = document.getElementById('qrScannerContainer');
+            qrScannerContainer.style.display = 'none';
         }
         
         async function scanForMagicFiles(directoryHandle) {
