@@ -154,17 +154,52 @@
             z-index: 10000;
             font-size: 16px;
         }
+        
+        /* QR Scanner */
+        .qr-scanner {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+        }
+        
+        #qrVideo {
+            width: 150px;
+            height: 150px;
+            border: 1px solid #333;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        
+        #qrCanvas {
+            display: none;
+        }
+        
+        .qr-status {
+            font-size: 12px;
+            text-align: center;
+            color: gray;
+        }
     </style>
 </head>
 <body>
     <div class="header">
         <div class="title">〽️agicViewer</div>
-        <button class="open-button" onclick="openFileDialog()">✨️</button>
+        <button class="open-button" onclick="openFileDialog()">➕️</button>
         <input type="file" id="fileInput" multiple accept=".magic" webkitdirectory="" />
     </div>
     
     <div class="grid-container" id="magicGrid">
         <!-- Los items .magic aparecerán aquí -->
+    </div>
+    
+    <!-- QR Scanner Container -->
+    <div id="qrScannerContainer" style="display: none;">
+        <div class="qr-scanner">
+            <video id="qrVideo" autoplay playsinline></video>
+            <div class="qr-status" id="qrStatus">Escaneando...</div>
+            <canvas id="qrCanvas"></canvas>
+        </div>
     </div>
     
     <div class="fullscreen-container" id="fullscreenContainer">
@@ -174,8 +209,11 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
     <script>
         let magicFiles = [];
+        let qrStream = null;
+        let qrScanning = false;
         
         // Cargar archivos .magic automáticamente al iniciar
         window.addEventListener('load', function() {
@@ -212,7 +250,7 @@
             }
         }
         
-        async function openFileDialog() {
+        async function startNFCScan() {
             // Verificar si el navegador soporta NFC
             if ('NDEFReader' in window) {
                 try {
