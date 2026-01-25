@@ -377,7 +377,7 @@
                 codeStatus.textContent = 'Escaneando...';
                 
                 // Inicializar ZXing MultiFormatReader
-                codeReader = new ZXing.BrowserMultiFormatReader();
+                codeReader = new ZXing.BrowserQRCodeReader();
                 
                 requestAnimationFrame(tickCode);
                 
