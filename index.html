@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MagicViewer</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="description" content="Visor de archivos .magic - Abre y visualiza contenido mágico">
+    <meta name="theme-color" content="#000000">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="apple-mobile-web-app-title" content="Magic Viewer">
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Ruffle Player -->
+    <script src="https://unpkg.com/@ruffle-rs/ruffle"></script>
+    <script>
+        window.RufflePlayer = window.RufflePlayer || {};
+        window.RufflePlayer.config = {
+            "autoplay": "on",
+            "splashScreen": false,
+            "unmuteOverlay": "hidden",
+            "letterbox": "on",
+            "contextMenu": false
+        };
+    </script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            background-color: black;
+            color: white;
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        
+        .header {
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .title {
+            font-size: 16px;
+            font-weight: lighter;
+            text-align: left;
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .open-button {
+            background: none;
+            border: 0px solid #333;
+            color: gray;
+            padding: 10px 15px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .open-button:hover {
+            background-color: black;
+        }
+        
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .magic-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+            padding: 15px;
+            border: 0px solid #333;
+            background: transparent;
+        }
+        
+        .magic-item:hover {
+            background-color: #121212;
+        }
+        
+        .magic-icon {
+            width: 150px;
+            height: 150px;
+            margin-bottom: 10px;
+        }
+        
+        .magic-name {
+            font-size: 12px;
+            text-align: center;
+            word-break: break-word;
+        }
+        
+        .fullscreen-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: black;
+            z-index: 9999;
+            display: none;
+        }
+        
+        .fullscreen-iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        
+        .fullscreen-swf {
+            width: 100%;
+            height: 100%;
+            display: none;
+            touch-action: none;
+        }
+        
+        /* Prevenir menú contextual en todos los elementos */
+        * {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
+        }
+        
+        .close-fullscreen {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            z-index: 10000;
+            font-size: 16px;
+        }
+        
+        /* Scanner genérico (Código de barras y NFC) */
+        .scanner-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 15px;
+        }
+        
+        .scanner-status {
+            font-size: 12px;
+            text-align: center;
+            color: gray;
+        }
+        
+        #codeVideo {
+            width: 150px;
+            height: 150px;
+            border: 1px solid #333;
+            object-fit: cover;
+            margin-bottom: 10px;
+        }
+        
+        #codeCanvas {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="title">MagicViewer</div>
+        <div class="button-group">
+            <button class="open-button" onclick="startNFCScan()">〽️</button>
+            <button class="open-button" onclick="startCodeScan()">🍏</button>
+        </div>
+    </div>
+    
+    <div class="grid-container" id="magicGrid">
+        <!-- Los items .magic aparecerán aquí -->
+    </div>
+    
+    <!-- Code Scanner Container (QR, Data Matrix, etc.) -->
+    <div id="codeScannerContainer" style="display: none;">
+        <div class="scanner-container">
+            <video id="codeVideo" autoplay playsinline></video>
+            <div class="scanner-status" id="codeStatus">Escaneando...</div>
+            <canvas id="codeCanvas"></canvas>
+        </div>
+    </div>
+    
+    <!-- NFC Scanner Container -->
+    <div id="nfcScannerContainer" style="display: none;">
+        <div class="scanner-container">
+            <div style="font-size: 48px; margin-bottom: 10px;">📱</div>
+            <div class="scanner-status" id="nfcStatus">Esperando NFC...</div>
+        </div>
+    </div>
+    
+    <div class="fullscreen-container" id="fullscreenContainer">
+        <button class="close-fullscreen" onclick="closeFullscreen()">✕</button>
+        <iframe class="fullscreen-iframe" id="fullscreenIframe"></iframe>
+        <div class="fullscreen-swf" id="fullscreenSwf"></div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script>
+        let magicFiles = [];
+        let codeStream = null;
+        let codeScanning = false;
+        let codeReader = null;
+        
+        // Cargar archivos .magic automáticamente al iniciar
+        window.addEventListener('load', function() {
+            loadMagicFilesFromRoot();
+        });
+        
+        async function loadMagicFilesFromRoot() {
+            const knownMagicFiles = [
+                'Bokken.magic',
+                'test.magic',
+                'demo.magic'
+            ];
+            
+            const rootMagicFiles = [];
+            
+            for (const fileName of knownMagicFiles) {
+                try {
+                    const response = await fetch(fileName);
+                    if (response.ok) {
+                        const blob = await response.blob();
+                        rootMagicFiles.push({
+                            name: fileName.replace('.magic', ''),
+                            file: blob
+                        });
+                        console.log(`Archivo ${fileName} cargado automáticamente`);
+                    }
+                } catch (error) {
+                    // Archivo no existe o no se puede cargar
+                }
+            }
+            
+            if (rootMagicFiles.length > 0) {
+                displayMagicFiles(rootMagicFiles);
+            }
+        }
+        
+        async function startNFCScan() {
+            const nfcScannerContainer = document.getElementById('nfcScannerContainer');
+            const nfcStatus = document.getElementById('nfcStatus');
+            const grid = document.getElementById('magicGrid');
+            
+            // Verificar si el navegador soporta NFC
+            if ('NDEFReader' in window) {
+                try {
+                    // Mostrar el contenedor del escáner en el grid
+                    grid.appendChild(nfcScannerContainer);
+                    nfcScannerContainer.style.display = 'block';
+                    nfcStatus.textContent = 'Esperando NFC...';
+                    
+                    const ndef = new NDEFReader();
+                    await ndef.scan();
+                    
+                    console.log('Escaneo NFC iniciado. Acerca un sticker NFC...');
+                    
+                    ndef.addEventListener('reading', async ({ message }) => {
+                        console.log('NFC detectado:', message);
+                        nfcStatus.textContent = 'cargando...';
+                        
+                        // Leer los registros del mensaje NFC
+                        for (const record of message.records) {
+                            if (record.recordType === 'text') {
+                                const textDecoder = new TextDecoder(record.encoding);
+                                const fileName = textDecoder.decode(record.data);
+                                
+                                console.log('Archivo leído del NFC:', fileName);
+                                
+                                // Asegurar que tenga la extensión .magic
+                                const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
+                                
+                                // Ocultar el escáner NFC
+                                stopNFCScan();
+                                
+                                // Intentar cargar el archivo desde la raíz
+                                await loadMagicFileFromRoot(magicFileName);
+                            }
+                        }
+                    });
+                    
+                    ndef.addEventListener('readingerror', () => {
+                        console.error('Error leyendo el NFC');
+                        nfcStatus.textContent = 'Error leyendo NFC';
+                    });
+                    
+                } catch (error) {
+                    console.error('Error iniciando NFC:', error);
+                    nfcStatus.textContent = 'Error: ' + error.message;
+                    setTimeout(() => stopNFCScan(), 3000);
+                }
+            } else {
+                alert('Tu navegador no soporta NFC. Necesitas usar un navegador compatible como Chrome en Android.');
+            }
+        }
+        
+        function stopNFCScan() {
+            const nfcScannerContainer = document.getElementById('nfcScannerContainer');
+            nfcScannerContainer.style.display = 'none';
+        }
+        
+        async function loadMagicFileFromRoot(fileName) {
+            try {
+                console.log(`Intentando cargar: ${fileName}`);
+                
+                const response = await fetch(fileName);
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const magicFile = {
+                        name: fileName.replace('.magic', ''),
+                        file: blob
+                    };
+                    
+                    console.log(`Archivo ${fileName} cargado exitosamente`);
+                    
+                    // Mostrar la miniatura en el grid
+                    await displayMagicFiles([magicFile]);
+                } else {
+                    console.error(`Archivo ${fileName} no encontrado`);
+                    alert(`No se encontró el archivo: ${fileName}`);
+                }
+            } catch (error) {
+                console.error('Error cargando archivo magic:', error);
+                alert(`Error al cargar el archivo: ${fileName}`);
+            }
+        }
+        
+        // CODE SCANNER FUNCTIONS (QR, Data Matrix, etc.)
+        async function startCodeScan() {
+            const codeScannerContainer = document.getElementById('codeScannerContainer');
+            const codeVideo = document.getElementById('codeVideo');
+            const codeStatus = document.getElementById('codeStatus');
+            const grid = document.getElementById('magicGrid');
+            
+            try {
+                codeStatus.textContent = 'Iniciando cámara...';
+                
+                // Mostrar el contenedor del escáner en el grid
+                grid.appendChild(codeScannerContainer);
+                codeScannerContainer.style.display = 'block';
+                
+                codeStream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    } 
+                });
+                
+                codeVideo.srcObject = codeStream;
+                await codeVideo.play();
+                codeScanning = true;
+                codeStatus.textContent = 'Escaneando...';
+                
+                // Inicializar ZXing MultiFormatReader
+                codeReader = new ZXing.BrowserMultiFormatReader();
+                
+                requestAnimationFrame(tickCode);
+                
+            } catch (error) {
+                console.error('Error iniciando escáner:', error);
+                codeStatus.textContent = 'Error: ' + error.message;
+            }
+        }
+        
+        function tickCode() {
+            if (!codeScanning) return;
+            
+            const codeVideo = document.getElementById('codeVideo');
+            const codeCanvas = document.getElementById('codeCanvas');
+            const codeStatus = document.getElementById('codeStatus');
+            const ctx = codeCanvas.getContext('2d', { willReadFrequently: true });
+            
+            if (codeVideo.readyState === codeVideo.HAVE_ENOUGH_DATA) {
+                codeCanvas.width = codeVideo.videoWidth;
+                codeCanvas.height = codeVideo.videoHeight;
+                ctx.drawImage(codeVideo, 0, 0, codeCanvas.width, codeCanvas.height);
+                
+                const imageData = ctx.getImageData(0, 0, codeCanvas.width, codeCanvas.height);
+                
+                try {
+                    const result = codeReader.decodeFromImageData(imageData);
+                    
+                    if (result) {
+                        const fileName = result.getText();
+                        const format = result.getBarcodeFormat();
+                        
+                        console.log('Código detectado:', fileName);
+                        console.log('Formato:', format);
+                        
+                        codeStatus.textContent = '✓ Código detectado!';
+                        
+                        // Detener escaneo
+                        stopCodeScan();
+                        
+                        // Asegurar que tenga la extensión .magic
+                        const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
+                        
+                        // Cargar el archivo
+                        loadMagicFileFromRoot(magicFileName);
+                        return;
+                    }
+                } catch (error) {
+                    // No se detectó código, continuar escaneando
+                }
+            }
+            
+            requestAnimationFrame(tickCode);
+        }
+        
+        function stopCodeScan() {
+            codeScanning = false;
+            
+            if (codeStream) {
+                codeStream.getTracks().forEach(track => track.stop());
+                codeStream = null;
+            }
+            
+            if (codeReader) {
+                codeReader.reset();
+                codeReader = null;
+            }
+            
+            const codeScannerContainer = document.getElementById('codeScannerContainer');
+            codeScannerContainer.style.display = 'none';
+        }
+        
+        async function scanForMagicFiles(directoryHandle) {
+            const magicFiles = [];
+            
+            try {
+                for await (const [name, handle] of directoryHandle.entries()) {
+                    if (handle.kind === 'file' && name.endsWith('.magic')) {
+                        const file = await handle.getFile();
+                        magicFiles.push({
+                            name: name.replace('.magic', ''),
+                            file: file
+                        });
+                    }
+                }
+                
+                displayMagicFiles(magicFiles);
+            } catch (error) {
+                console.error('Error escaneando archivos:', error);
+            }
+        }
+            
+        async function displayMagicFiles(files) {
+            const grid = document.getElementById('magicGrid');
+            grid.innerHTML = '';
+            
+            for (const magicFile of files) {
+                try {
+                    const zip = new JSZip();
+                    const zipContent = await zip.loadAsync(magicFile.file);
+                    
+                    const iconFile = zipContent.files['icon.ico'];
+                    if (iconFile) {
+                        const iconBlob = await iconFile.async('blob');
+                        const iconUrl = URL.createObjectURL(iconBlob);
+                        
+                        const item = document.createElement('div');
+                        item.className = 'magic-item';
+                        item.onclick = () => openMagicFile(magicFile);
+                        
+                        item.innerHTML = `
+                            <img class="magic-icon" src="${iconUrl}" alt="${magicFile.name}" />
+                            <div class="magic-name">${magicFile.name}</div>
+                        `;
+                        
+                        grid.appendChild(item);
+                    }
+                } catch (error) {
+                    console.error('Error procesando archivo magic:', error);
+                }
+            }
+            
+            window.currentMagicFiles = files;
+        }
+        
+        async function openMagicFile(magicFile) {
+            try {
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(magicFile.file);
+                
+                // Buscar archivo SWF primero
+                let swfFile = null;
+                for (const [fileName, file] of Object.entries(zipContent.files)) {
+                    if (fileName.toLowerCase().endsWith('.swf') && !file.dir) {
+                        swfFile = file;
+                        break;
+                    }
+                }
+                
+                if (swfFile) {
+                    // Reproducir SWF con Ruffle
+                    const swfBlob = await swfFile.async('blob');
+                    const swfUrl = URL.createObjectURL(swfBlob);
+                    
+                    const swfContainer = document.getElementById('fullscreenSwf');
+                    const iframe = document.getElementById('fullscreenIframe');
+                    
+                    // Ocultar iframe, mostrar contenedor SWF
+                    iframe.style.display = 'none';
+                    swfContainer.style.display = 'block';
+                    
+                    // Crear elemento Ruffle
+                    swfContainer.innerHTML = '';
+                    const player = window.RufflePlayer.newest().createPlayer();
+                    player.style.width = '100%';
+                    player.style.height = '100%';
+                    swfContainer.appendChild(player);
+                    
+                    // Prevenir menú contextual en el player
+                    player.addEventListener('contextmenu', (e) => e.preventDefault());
+                    swfContainer.addEventListener('contextmenu', (e) => e.preventDefault());
+                    
+                    await player.load(swfUrl);
+                    
+                    document.getElementById('fullscreenContainer').style.display = 'block';
+                    
+                    if (document.documentElement.requestFullscreen) {
+                        document.documentElement.requestFullscreen().catch(err => {
+                            console.log('No se pudo entrar en fullscreen:', err);
+                        });
+                    }
+                } else {
+                    // Si no hay SWF, buscar index.html
+                    const indexFile = zipContent.files['index.html'];
+                    if (indexFile) {
+                        const htmlContent = await indexFile.async('string');
+                        const blob = new Blob([htmlContent], { type: 'text/html' });
+                        const url = URL.createObjectURL(blob);
+                        
+                        const iframe = document.getElementById('fullscreenIframe');
+                        const swfContainer = document.getElementById('fullscreenSwf');
+                        
+                        // Mostrar iframe, ocultar contenedor SWF
+                        swfContainer.style.display = 'none';
+                        iframe.style.display = 'block';
+                        iframe.src = url;
+                        
+                        document.getElementById('fullscreenContainer').style.display = 'block';
+                        
+                        if (document.documentElement.requestFullscreen) {
+                            document.documentElement.requestFullscreen().catch(err => {
+                                console.log('No se pudo entrar en fullscreen:', err);
+                            });
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error abriendo archivo magic:', error);
+            }
+        }
+        
+        function closeFullscreen() {
+            document.getElementById('fullscreenContainer').style.display = 'none';
+            
+            if (document.fullscreenElement) {
+                document.exitFullscreen().catch(err => {
+                    console.log('Error saliendo de fullscreen:', err);
+                });
+            }
+            
+            // Limpiar ambos contenedores
+            document.getElementById('fullscreenIframe').src = '';
+            document.getElementById('fullscreenSwf').innerHTML = '';
+        }
+        
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                closeFullscreen();
+            }
+        });
+        
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('SW registrado:', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('SW falló:', error);
+                    });
+            });
+        }
+    </script>
+</body>
+</html>
