@@ -176,10 +176,6 @@
             object-fit: cover;
             margin-bottom: 10px;
         }
-        
-        #codeCanvas {
-            display: none;
-        }
     </style>
 </head>
 <body>
@@ -200,14 +196,13 @@
         <div class="scanner-container">
             <video id="codeVideo" autoplay playsinline></video>
             <div class="scanner-status" id="codeStatus">Escaneando...</div>
-            <canvas id="codeCanvas"></canvas>
         </div>
     </div>
     
     <!-- NFC Scanner Container -->
     <div id="nfcScannerContainer" style="display: none;">
         <div class="scanner-container">
-            <div style="font-size: 48px; margin-bottom: 10px;">📱</div>
+            <div style="font-size: 48px; padding-top: 62px; margin-bottom: 62px;">〽️</div>
             <div class="scanner-status" id="nfcStatus">Esperando NFC...</div>
         </div>
     </div>
@@ -222,8 +217,6 @@
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script>
         let magicFiles = [];
-        let codeStream = null;
-        let codeScanning = false;
         let codeReader = null;
         
         // Cargar archivos .magic automáticamente al iniciar
@@ -281,7 +274,7 @@
                     
                     ndef.addEventListener('reading', async ({ message }) => {
                         console.log('NFC detectado:', message);
-                        nfcStatus.textContent = 'cargando...';
+                        nfcStatus.textContent = '✓ NFC detectado, cargando...';
                         
                         // Leer los registros del mensaje NFC
                         for (const record of message.records) {
@@ -305,12 +298,12 @@
                     
                     ndef.addEventListener('readingerror', () => {
                         console.error('Error leyendo el NFC');
-                        nfcStatus.textContent = 'Error leyendo NFC';
+                        nfcStatus.textContent = '❌ Error leyendo NFC';
                     });
                     
                 } catch (error) {
                     console.error('Error iniciando NFC:', error);
-                    nfcStatus.textContent = 'Error: ' + error.message;
+                    nfcStatus.textContent = '❌ Error: ' + error.message;
                     setTimeout(() => stopNFCScan(), 3000);
                 }
             } else {
@@ -352,7 +345,6 @@
         // CODE SCANNER FUNCTIONS (QR, Data Matrix, etc.)
         async function startCodeScan() {
             const codeScannerContainer = document.getElementById('codeScannerContainer');
-            const codeVideo = document.getElementById('codeVideo');
             const codeStatus = document.getElementById('codeStatus');
             const grid = document.getElementById('magicGrid');
             
@@ -363,51 +355,18 @@
                 grid.appendChild(codeScannerContainer);
                 codeScannerContainer.style.display = 'block';
                 
-                codeStream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { 
-                        facingMode: 'environment',
-                        width: { ideal: 1280 },
-                        height: { ideal: 720 }
-                    } 
-                });
-                
-                codeVideo.srcObject = codeStream;
-                await codeVideo.play();
-                codeScanning = true;
                 codeStatus.textContent = 'Escaneando...';
                 
                 // Inicializar ZXing MultiFormatReader
+                // Cambiar a BrowserQRCodeReader() para solo QR
+                // Cambiar a BrowserDatamatrixCodeReader() para solo Data Matrix
                 codeReader = new ZXing.BrowserMultiFormatReader();
                 
-                requestAnimationFrame(tickCode);
-                
-            } catch (error) {
-                console.error('Error iniciando escáner:', error);
-                codeStatus.textContent = 'Error: ' + error.message;
-            }
-        }
-        
-        function tickCode() {
-            if (!codeScanning) return;
-            
-            const codeVideo = document.getElementById('codeVideo');
-            const codeCanvas = document.getElementById('codeCanvas');
-            const codeStatus = document.getElementById('codeStatus');
-            const ctx = codeCanvas.getContext('2d', { willReadFrequently: true });
-            
-            if (codeVideo.readyState === codeVideo.HAVE_ENOUGH_DATA) {
-                codeCanvas.width = codeVideo.videoWidth;
-                codeCanvas.height = codeVideo.videoHeight;
-                ctx.drawImage(codeVideo, 0, 0, codeCanvas.width, codeCanvas.height);
-                
-                const imageData = ctx.getImageData(0, 0, codeCanvas.width, codeCanvas.height);
-                
-                try {
-                    const result = codeReader.decodeFromImageData(imageData);
-                    
+                // Usar el método de ZXing que maneja todo automáticamente
+                codeReader.decodeFromVideoDevice(undefined, 'codeVideo', (result, err) => {
                     if (result) {
-                        const fileName = result.getText();
-                        const format = result.getBarcodeFormat();
+                        const fileName = result.text;
+                        const format = result.format;
                         
                         console.log('Código detectado:', fileName);
                         console.log('Formato:', format);
@@ -422,24 +381,20 @@
                         
                         // Cargar el archivo
                         loadMagicFileFromRoot(magicFileName);
-                        return;
                     }
-                } catch (error) {
-                    // No se detectó código, continuar escaneando
-                }
+                    
+                    if (err && !(err instanceof ZXing.NotFoundException)) {
+                        console.error('Error escaneando:', err);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Error iniciando escáner:', error);
+                codeStatus.textContent = 'Error: ' + error.message;
             }
-            
-            requestAnimationFrame(tickCode);
         }
         
         function stopCodeScan() {
-            codeScanning = false;
-            
-            if (codeStream) {
-                codeStream.getTracks().forEach(track => track.stop());
-                codeStream = null;
-            }
-            
             if (codeReader) {
                 codeReader.reset();
                 codeReader = null;
