@@ -219,7 +219,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-    <script src="https://unpkg.com/@zxing/library@latest"></script>
+    <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script>
         let magicFiles = [];
         let codeStream = null;
@@ -377,7 +377,7 @@
                 codeStatus.textContent = 'Escaneando...';
                 
                 // Inicializar ZXing MultiFormatReader
-                codeReader = new ZXing.BrowserQRCodeReader();
+                codeReader = new ZXing.BrowserMultiFormatReader();
                 
                 requestAnimationFrame(tickCode);
                 
