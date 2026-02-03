@@ -182,7 +182,7 @@
     <div class="header">
         <div class="title">MagicViewer</div>
         <div class="button-group">
-            <button class="open-button" onclick="startCodeScan()">〽️</button>
+            <button class="open-button" onclick="startCodeScan()">:.:</button>
         </div>
     </div>
     
@@ -212,20 +212,7 @@
         // Cargar archivos .magic automáticamente al iniciar
         window.addEventListener('load', function() {
             loadMagicFilesFromRoot();
-            lockOrientation();
         });
-        
-        // Bloquear orientación en vertical (portrait)
-        async function lockOrientation() {
-            try {
-                if (screen.orientation && screen.orientation.lock) {
-                    await screen.orientation.lock('portrait');
-                    console.log('Orientación bloqueada en vertical');
-                }
-            } catch (error) {
-                console.log('No se pudo bloquear la orientación:', error);
-            }
-        }
         
         async function loadMagicFilesFromRoot() {
             const knownMagicFiles = [
