@@ -155,7 +155,7 @@
             font-size: 16px;
         }
         
-        /* Scanner genérico (Código de barras y NFC) */
+        /* Scanner de códigos */
         .scanner-container {
             display: flex;
             flex-direction: column;
@@ -182,7 +182,6 @@
     <div class="header">
         <div class="title">MagicViewer</div>
         <div class="button-group">
-            <button class="open-button" onclick="startNFCScan()">nfc</button>
             <button class="open-button" onclick="startCodeScan()">〽️</button>
         </div>
     </div>
@@ -199,14 +198,6 @@
         </div>
     </div>
     
-    <!-- NFC Scanner Container -->
-    <div id="nfcScannerContainer" style="display: none;">
-        <div class="scanner-container">
-            <div style="font-size: 30px; padding-top: 62px; margin-bottom: 62px;">〽️</div>
-            <div class="scanner-status" id="nfcStatus">Esperando NFC...</div>
-        </div>
-    </div>
-    
     <div class="fullscreen-container" id="fullscreenContainer">
         <button class="close-fullscreen" onclick="closeFullscreen()">✕</button>
         <iframe class="fullscreen-iframe" id="fullscreenIframe"></iframe>
@@ -216,7 +207,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://unpkg.com/@zxing/library@0.19.1"></script>
     <script>
-        let magicFiles = [];
         let codeReader = null;
         
         // Cargar archivos .magic automáticamente al iniciar
@@ -252,68 +242,6 @@
             if (rootMagicFiles.length > 0) {
                 displayMagicFiles(rootMagicFiles);
             }
-        }
-        
-        async function startNFCScan() {
-            const nfcScannerContainer = document.getElementById('nfcScannerContainer');
-            const nfcStatus = document.getElementById('nfcStatus');
-            const grid = document.getElementById('magicGrid');
-            
-            // Verificar si el navegador soporta NFC
-            if ('NDEFReader' in window) {
-                try {
-                    // Mostrar el contenedor del escáner en el grid
-                    grid.appendChild(nfcScannerContainer);
-                    nfcScannerContainer.style.display = 'block';
-                    nfcStatus.textContent = 'Esperando NFC...';
-                    
-                    const ndef = new NDEFReader();
-                    await ndef.scan();
-                    
-                    console.log('Escaneo NFC iniciado. Acerca un sticker NFC...');
-                    
-                    ndef.addEventListener('reading', async ({ message }) => {
-                        console.log('NFC detectado:', message);
-                        nfcStatus.textContent = '✓ NFC detectado, cargando...';
-                        
-                        // Leer los registros del mensaje NFC
-                        for (const record of message.records) {
-                            if (record.recordType === 'text') {
-                                const textDecoder = new TextDecoder(record.encoding);
-                                const fileName = textDecoder.decode(record.data);
-                                
-                                console.log('Archivo leído del NFC:', fileName);
-                                
-                                // Asegurar que tenga la extensión .magic
-                                const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
-                                
-                                // Ocultar el escáner NFC
-                                stopNFCScan();
-                                
-                                // Intentar cargar el archivo desde la raíz
-                                await loadMagicFileFromRoot(magicFileName);
-                            }
-                        }
-                    });
-                    
-                    ndef.addEventListener('readingerror', () => {
-                        console.error('Error leyendo el NFC');
-                        nfcStatus.textContent = '❌ Error leyendo NFC';
-                    });
-                    
-                } catch (error) {
-                    console.error('Error iniciando NFC:', error);
-                    nfcStatus.textContent = '❌ Error: ' + error.message;
-                    setTimeout(() => stopNFCScan(), 3000);
-                }
-            } else {
-                alert('Tu navegador no soporta NFC. Necesitas usar un navegador compatible como Chrome en Android.');
-            }
-        }
-        
-        function stopNFCScan() {
-            const nfcScannerContainer = document.getElementById('nfcScannerContainer');
-            nfcScannerContainer.style.display = 'none';
         }
         
         async function loadMagicFileFromRoot(fileName) {
@@ -358,8 +286,6 @@
                 codeStatus.textContent = 'Escaneando...';
                 
                 // Inicializar ZXing MultiFormatReader
-                // Cambiar a BrowserQRCodeReader() para solo QR
-                // Cambiar a BrowserDatamatrixCodeReader() para solo Data Matrix
                 codeReader = new ZXing.BrowserMultiFormatReader();
                 
                 // Usar el método de ZXing que maneja todo automáticamente
@@ -404,26 +330,6 @@
             codeScannerContainer.style.display = 'none';
         }
         
-        async function scanForMagicFiles(directoryHandle) {
-            const magicFiles = [];
-            
-            try {
-                for await (const [name, handle] of directoryHandle.entries()) {
-                    if (handle.kind === 'file' && name.endsWith('.magic')) {
-                        const file = await handle.getFile();
-                        magicFiles.push({
-                            name: name.replace('.magic', ''),
-                            file: file
-                        });
-                    }
-                }
-                
-                displayMagicFiles(magicFiles);
-            } catch (error) {
-                console.error('Error escaneando archivos:', error);
-            }
-        }
-            
         async function displayMagicFiles(files) {
             const grid = document.getElementById('magicGrid');
             grid.innerHTML = '';
