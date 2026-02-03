@@ -1,12 +1,12 @@
 {
-  "name": "〽️agicViewer",
+  "name": "MagicViewer",
   "short_name": "Magic Viewer",
   "description": "Visor de archivos .magic - Abre y visualiza contenido mágico",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#000000",
   "theme_color": "#000000",
-  "orientation": "any",
+  "orientation": "portrait",
   "scope": "./",
   "icons": [
     {
