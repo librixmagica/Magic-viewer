@@ -1,3 +1,5 @@
+Colors&Mazes.magic
 Bokken.magic
-test.magic
+WillysMap.magic
+Test.magic
 Demo.magic
