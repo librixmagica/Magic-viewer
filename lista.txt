@@ -1,0 +1,3 @@
+Bokken.magic
+test.magic
+demo.magic
