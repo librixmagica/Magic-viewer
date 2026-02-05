@@ -1,5 +1,5 @@
 Colors&Mazes.magic
-Bokken.magic
+Atlas.magic
 WillysMap.magic
 Test.magic
 Demo.magic
