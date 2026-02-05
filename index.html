@@ -175,7 +175,7 @@
     <div class="header">
         <div class="title">MagicViewer</div>
         <div class="button-group">
-            <button class="open-button" onclick="startCodeScan()">:.:</button>
+            <button class="open-button" onclick="startCodeScan()">]:.:[</button>
         </div>
     </div>
     
@@ -249,7 +249,7 @@
             }
         }
         
-        async function loadMagicFileFromRoot(fileName) {
+        async function loadMagicFileFromRoot(fileName, fromScan = false) {
             try {
                 console.log(`Intentando cargar: ${fileName}`);
                 
@@ -263,8 +263,13 @@
                     
                     console.log(`Archivo ${fileName} cargado exitosamente`);
                     
-                    // Mostrar la miniatura en el grid
-                    await displayMagicFiles([magicFile]);
+                    if (fromScan) {
+                        // Desde escaneo QR: abrir directo en fullscreen SIN agregar al grid
+                        await openMagicFile(magicFile);
+                    } else {
+                        // Desde lista.txt: mostrar en el grid
+                        await displayMagicFiles([magicFile]);
+                    }
                 } else {
                     console.error(`Archivo ${fileName} no encontrado`);
                     alert(`No se encontró el archivo: ${fileName}`);
@@ -310,8 +315,8 @@
                         // Asegurar que tenga la extensión .magic
                         const magicFileName = fileName.endsWith('.magic') ? fileName : fileName + '.magic';
                         
-                        // Cargar el archivo
-                        loadMagicFileFromRoot(magicFileName);
+                        // Cargar el archivo con fromScan=true para abrir directo
+                        loadMagicFileFromRoot(magicFileName, true);
                     }
                     
                     if (err && !(err instanceof ZXing.NotFoundException)) {
