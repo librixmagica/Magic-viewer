@@ -81,8 +81,8 @@
         .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 30px;
-            margin-top: 20px 5px;
+            gap: 20px 5px;
+            margin-top: 20px;
         }
         
         .magic-item {
@@ -90,7 +90,7 @@
             flex-direction: column;
             align-items: center;
             cursor: pointer;
-            padding: 2px;
+            padding: 15px;
             border: 0px solid #333;
             background: transparent;
         }
@@ -467,6 +467,19 @@
                 closeFullscreen();
             }
         });
+        
+        // Service Worker mínimo - Solo para instalación PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('sw.js')
+                    .then(function(registration) {
+                        console.log('SW registrado');
+                    })
+                    .catch(function(error) {
+                        console.log('SW error:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
