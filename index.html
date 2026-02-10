@@ -44,7 +44,7 @@
             background-color: black;
             color: white;
             font-family: Arial, sans-serif;
-            padding: 15px;
+            padding: 20px;
         }
         
         .header {
@@ -81,7 +81,7 @@
         .grid-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 20px 5px;
+            gap: 30px;
             margin-top: 20px;
         }
         
@@ -90,7 +90,7 @@
             flex-direction: column;
             align-items: center;
             cursor: pointer;
-            padding: 2px;
+            padding: 15px;
             border: 0px solid #333;
             background: transparent;
         }
@@ -175,7 +175,7 @@
     <div class="header">
         <div class="title">MagicViewer</div>
         <div class="button-group">
-            <button class="open-button" onclick="startCodeScan()">]:.:[</button>
+            <button class="open-button" onclick="startCodeScan()">:.:</button>
         </div>
     </div>
     
@@ -467,18 +467,6 @@
                 closeFullscreen();
             }
         });
-        
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('sw.js')
-                    .then(function(registration) {
-                        console.log('SW registrado:', registration.scope);
-                    })
-                    .catch(function(error) {
-                        console.log('SW falló:', error);
-                    });
-            });
-        }
     </script>
 </body>
 </html>
